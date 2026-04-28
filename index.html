@@ -275,8 +275,8 @@
                 return stats.sort((a, b) => b.pts - a.pts || b.diff - a.diff || b.wins - a.wins);
             };
 
-            // Integrasi API s.id untuk menyingkat link
-            const shortenUrlWithSid = async (longUrl) => {
+            // Fungsi Integrasi s.id
+            const shortenUrl = async (longUrl) => {
                 try {
                     const response = await fetch('https://api.s.id/v1/shorten', {
                         method: 'POST',
@@ -288,10 +288,9 @@
                         body: new URLSearchParams({ url: longUrl })
                     });
                     const result = await response.json();
-                    // Mengembalikan short_url jika berhasil, jika gagal kembali ke longUrl
                     return result.short || longUrl;
                 } catch (err) {
-                    console.error('API s.id Error:', err);
+                    console.error('s.id error:', err);
                     return longUrl;
                 }
             };
@@ -308,8 +307,8 @@
                 const encodedData = btoa(unescape(encodeURIComponent(JSON.stringify(data))));
                 const longUrl = `${window.location.origin}${window.location.pathname}?result=${encodedData}`;
                 
-                // Menyingkat URL sebelum dibagikan
-                const shareUrl = await shortenUrlWithSid(longUrl);
+                // Panggil fungsi penyingkat link
+                const shareUrl = await shortenUrl(longUrl);
                 
                 try {
                     const canvas = await html2canvas(element, { backgroundColor: '#f8fafc', scale: 2, logging: false });
