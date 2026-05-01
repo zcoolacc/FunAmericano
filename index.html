@@ -509,19 +509,12 @@
                                             <tbody className="divide-y">
                                                 {getStandings().map((p, i) => (
                                                     <tr key={i} className={isFinished && i === 0 ? 'bg-amber-50/50 final-rank-1' : ''}>
-                                                       <td className="py-5 px-4 text-center">
-                                                            <div style={{
-                                                                backgroundColor: '#4f46e5',
-                                                                color: 'white',
-                                                                width: '32px',
-                                                                height: '32px',
-                                                                lineHeight: '32px', // Mengunci posisi angka di tengah secara vertikal
-                                                                textAlign: 'center', // Mengunci posisi angka di tengah secara horizontal
-                                                                borderRadius: '12px',
-                                                                fontWeight: '900',
-                                                                fontSize: '12px',
-                                                                display: 'inline-block' // Lebih stabil daripada flex saat di-render ke gambar
-                                                            }}>
+                                                        <td className="py-5 px-4 text-center font-black text-xs text-slate-300">{i + 1}</td>
+                                                        <td className="py-5 px-2 font-black text-xs uppercase truncate max-w-[120px]">{p.name}</td>
+                                                        <td className="py-5 px-2 text-center font-bold text-xs">{p.played}</td>
+                                                        <td className={`py-5 px-2 text-center font-black text-xs ${p.diff > 0 ? 'text-emerald-500' : 'text-rose-500'}`}>{p.diff}</td>
+                                                        <td className="py-5 px-4 text-center">
+                                                            <div className="w-8 h-8 flex items-center justify-center rounded-xl font-black mx-auto text-xs bg-indigo-600 text-white">
                                                                 {p.pts}
                                                             </div>
                                                         </td>
