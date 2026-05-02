@@ -156,6 +156,17 @@
                 setPlayers(players.map(p => ({ ...p, active: status })));
             };
 
+            const replacePlayer = (matchId, oldId, newId) => {
+                setMatches(matches.map(m => {
+                    if (m.id === matchId) {
+                        const newT1 = m.t1.map(id => id === oldId ? newId : id);
+                        const newT2 = m.t2.map(id => id === oldId ? newId : id);
+                        return { ...m, t1: newT1, t2: newT2 };
+                    }
+                    return m;
+                }));
+            };
+
             const getPlayCount = (playerId) => {
                 return matches.reduce((count, m) => {
                     return count + (m.t1.includes(playerId) || m.t2.includes(playerId) ? 1 : 0);
@@ -192,105 +203,94 @@
                 const womenTotal = activePlayers.filter(p => p.gender === 'W').length;
                 const isFirstMatch = matches.length === 0;
 
-                // Logika Pemilihan 4 Pemain Berdasarkan Antrian Adil
+                // Urutkan berdasarkan play count (Kriteria 1) dan consecutive count (Kriteria 6)
                 const sorted = [...activePlayers].sort((a, b) => {
-                    const playA = getPlayCount(a.id);
-                    const playB = getPlayCount(b.id);
-                    // Kriteria 1: Selisih tidak lebih dari 1
-                    if (playA !== playB) return playA - playB;
-                    
-                    // Kriteria 6: Prioritaskan yang belum main berturut-turut
+                    const diffPlay = getPlayCount(a.id) - getPlayCount(b.id);
+                    if (diffPlay !== 0) return diffPlay;
                     return getConsecutiveCount(a.id) - getConsecutiveCount(b.id);
                 });
 
                 let selected = [];
 
-                // IMPLEMENTASI KRITERIA GENDER
+                // IMPLEMENTASI ALGORITMA SESUAI POIN 2, 3, 4, 5
                 if (womenTotal === 1 && isFirstMatch) {
-                    // Kriteria 2: 1 Wanita dianggap Pria di awal
+                    // Poin 2: Hanya 1 wanita di awal -> Anggap pria
                     selected = sorted.slice(0, 4);
                 } else if (isFirstMatch && womenTotal > 1 && womenTotal % 2 !== 0) {
-                    // Kriteria 3: Wanita Ganjil > 1 (Match 1: 1W + 3P)
+                    // Poin 3: Ganjil > 1 di awal -> Match 1: 1W + 3P
                     const w = sorted.find(p => p.gender === 'W');
                     const m = sorted.filter(p => p.gender === 'M').slice(0, 3);
                     selected = [w, ...m];
                 } else if (isFirstMatch && womenTotal > 0 && womenTotal % 2 === 0) {
-                    // Kriteria 4: Wanita Genap (Match 1: Mixed Double 2W + 2P)
+                    // Poin 4: Genap di awal -> Match 1: Mixed Double (2W + 2P)
                     const w = sorted.filter(p => p.gender === 'W').slice(0, 2);
                     const m = sorted.filter(p => p.gender === 'M').slice(0, 2);
                     selected = [...w, ...m];
                 } else {
-                    // Kriteria 5 & Pertandingan Selanjutnya
+                    // Poin 3, 4, 5 untuk pertandingan selanjutnya: Hindari 3W+1P atau 3P+1W
                     selected = sorted.slice(0, 4);
                     let selW = selected.filter(p => p.gender === 'W').length;
                     
-                    // Hindari 3W+1P atau 3P+1W
                     if (selW === 1 || selW === 3) {
+                        // Coba swap dengan pemain cadangan untuk mencapai All Men, All Women, atau Mixed
                         const targetGender = (selW === 1) ? 'W' : 'M';
-                        const substitute = sorted.slice(4).find(p => p.gender === targetGender);
-                        // Cek Kriteria 1: Selisih main tetap terjaga
-                        if (substitute && Math.abs(getPlayCount(substitute.id) - getPlayCount(selected[0].id)) <= 1) {
+                        const backup = sorted.slice(4).find(p => p.gender === targetGender);
+                        
+                        if (backup && (getPlayCount(backup.id) - getPlayCount(selected[0].id) <= 1)) {
                             const swapIdx = selected.findIndex(p => p.gender !== targetGender);
-                            selected[swapIdx] = substitute;
+                            selected[swapIdx] = backup;
                         }
                     }
                 }
 
-                // Kriteria 6: Validasi batasan 2x berturut-turut
+                // Poin 6: Batasan 2x berturut-turut
                 selected = selected.map(p => {
                     if (getConsecutiveCount(p.id) >= 2) {
-                        const sub = sorted.slice(4).find(candidate => 
-                            !selected.find(s => s.id === candidate.id) && getConsecutiveCount(candidate.id) < 1
+                        const replacement = sorted.slice(4).find(cand => 
+                            !selected.find(s => s.id === cand.id) && getConsecutiveCount(cand.id) < 1
                         );
-                        return sub ? sub : p;
+                        return replacement ? replacement : p;
                     }
                     return p;
                 });
 
-                // PENENTUAN PASANGAN (Kriteria 7: Jangan berpasangan dengan orang yang sama)
-                let t1 = [], t2 = [];
+                // Poin 7: Jangan berpasangan dengan pemain yang sama
                 const finalP = selected;
-                const finalW = finalP.filter(p => p.gender === 'W');
-                const finalM = finalP.filter(p => p.gender === 'M');
-                let matchType = '';
-
-                // Mencari kombinasi tim terbaik
                 const possibleTeams = [
                     { ta: [finalP[0], finalP[1]], tb: [finalP[2], finalP[3]] },
                     { ta: [finalP[0], finalP[2]], tb: [finalP[1], finalP[3]] },
                     { ta: [finalP[0], finalP[3]], tb: [finalP[1], finalP[2]] }
                 ];
 
-                // Filter yang belum pernah berpasangan (Kriteria 7)
+                // Cari kombinasi yang belum pernah berpasangan
                 let bestOption = possibleTeams.find(opt => 
                     !havePlayedTogether(opt.ta[0].id, opt.ta[1].id) && 
                     !havePlayedTogether(opt.tb[0].id, opt.tb[1].id)
                 ) || possibleTeams[0];
 
-                // Penentuan Tipe Match untuk Label UI
+                // Jika Mixed Double dimungkinkan (2W + 2P), prioritaskan silang gender
+                const finalW = finalP.filter(p => p.gender === 'W');
+                const finalM = finalP.filter(p => p.gender === 'M');
                 if (finalW.length === 2 && finalM.length === 2) {
-                    matchType = 'Mixed Doubles';
-                    // Optimasi silang gender jika memungkinkan
                     const mixed = possibleTeams.find(opt => 
                         opt.ta[0].gender !== opt.ta[1].gender && 
                         !havePlayedTogether(opt.ta[0].id, opt.ta[1].id)
                     );
                     if (mixed) bestOption = mixed;
-                } else if (finalW.length === 4) {
-                    matchType = 'All Women';
-                } else if (finalM.length === 4) {
-                    matchType = 'All Men';
-                } else {
-                    matchType = `${finalW.length}W + ${finalM.length}M`;
                 }
 
-                t1 = bestOption.ta.map(p => p.id);
-                t2 = bestOption.tb.map(p => p.id);
+                let matchType = '';
+                if (finalW.length === 2 && finalM.length === 2) matchType = 'Mixed Doubles';
+                else if (finalW.length === 4) matchType = 'All Women';
+                else if (finalM.length === 4) matchType = 'All Men';
+                else matchType = `${finalW.length}W + ${finalM.length}M`;
 
                 const newMatch = {
                     id: Date.now() + Math.random(),
                     matchNumber: matches.length + 1,
-                    t1, t2, s1: 0, s2: 0, done: false, type: matchType
+                    t1: bestOption.ta.map(p => p.id),
+                    t2: bestOption.tb.map(p => p.id),
+                    s1: 0, s2: 0, done: false, type: matchType
                 };
 
                 setMatches([...matches, newMatch]);
@@ -318,21 +318,12 @@
                 return stats.sort((a, b) => b.pts - a.pts || b.diff - a.diff || b.wins - a.wins);
             };
 
-            const shortenUrl = async (longUrl) => {
-                try {
-                    const response = await fetch(`https://tinyurl.com/api-create.php?url=${encodeURIComponent(longUrl)}`);
-                    if (response.ok) return await response.text();
-                    return longUrl;
-                } catch (err) { return longUrl; }
-            };
-
             const shareStandings = async () => {
                 const element = document.getElementById('standings-table');
                 if (!element) return;
                 const data = { event: eventDetails, results: getStandings(), shared: true };
                 const encodedData = btoa(unescape(encodeURIComponent(JSON.stringify(data))));
                 const longUrl = `${window.location.origin}${window.location.pathname}?result=${encodedData}`;
-                const shareUrl = await shortenUrl(longUrl);
                 try {
                     const canvas = await html2canvas(element, { backgroundColor: '#f8fafc', scale: 2, logging: false });
                     const dataUrl = canvas.toDataURL('image/png');
@@ -341,11 +332,11 @@
                     if (navigator.share) {
                         await navigator.share({
                             title: `Klasemen ${eventDetails.title || 'Americano Badminton'}`,
-                            text: `Cek Hasil Americano! Link: ${shareUrl}`,
+                            text: `Cek Hasil Americano! Link: ${longUrl}`,
                             files: [file]
                         });
                     } else {
-                        navigator.clipboard.writeText(shareUrl);
+                        navigator.clipboard.writeText(longUrl);
                         const link = document.createElement('a');
                         link.download = 'Klasemen_Americano.png';
                         link.href = dataUrl;
@@ -488,9 +479,24 @@
                                                 <div key={teamNum} className="flex items-center justify-between gap-4">
                                                     <div className="flex-1 space-y-1">
                                                         {(teamNum === 1 ? m.t1 : m.t2).map(playerId => (
-                                                            <div key={playerId} className="text-sm font-black flex items-center gap-2">
+                                                            <div key={playerId} className="text-sm font-black flex items-center gap-2 relative group">
                                                                 <div className={`w-1.5 h-1.5 rounded-full ${getPGender(playerId)==='M'?'bg-blue-400':'bg-pink-400'}`}></div>
-                                                                {getPName(playerId)}
+                                                                <span>{getPName(playerId)}</span>
+                                                                {(!m.done && !isFinished) && (
+                                                                    <div className="ml-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                                        <select 
+                                                                            className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                                                                            value=""
+                                                                            onChange={(e) => replacePlayer(m.id, playerId, e.target.value)}
+                                                                        >
+                                                                            <option value="" disabled>Ganti...</option>
+                                                                            {players.filter(p => p.active && !m.t1.includes(p.id) && !m.t2.includes(p.id)).map(p => (
+                                                                                <option key={p.id} value={p.id}>{p.name}</option>
+                                                                            ))}
+                                                                        </select>
+                                                                        <span className="text-[10px] text-indigo-400">🔄</span>
+                                                                    </div>
+                                                                )}
                                                             </div>
                                                         ))}
                                                     </div>
@@ -547,15 +553,7 @@
                                                         <td className="py-5 px-2 text-center font-bold text-xs">{p.played}</td>
                                                         <td className={`py-5 px-2 text-center font-black text-xs ${p.diff > 0 ? 'text-emerald-500' : 'text-rose-500'}`}>{p.diff}</td>
                                                         <td className="py-5 px-4 text-center">
-                                                            <span style={{
-                                                                color: '#4f46e5',
-                                                                fontWeight: '900',
-                                                                fontSize: '14px',
-                                                                display: 'block',
-                                                                textAlign: 'center'
-                                                            }}>
-                                                                {p.pts}
-                                                            </span>
+                                                            <span className="font-black text-indigo-600 text-sm block text-center">{p.pts}</span>
                                                         </td>
                                                     </tr>
                                                 ))}
