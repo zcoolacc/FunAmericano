@@ -210,7 +210,7 @@
             const generateRound = () => {
                 if (isFinished) return;
                 const activeMatches = matches.filter(m => !m.done).length;
-                if (activeMatches >= eventDetails.courts) {
+                if (activeMatches >= (parseInt(eventDetails.courts) || 1)) {
                     alert(`Semua lapangan (${eventDetails.courts}) sedang digunakan. Selesaikan skor terlebih dahulu!`);
                     return;
                 }
@@ -279,7 +279,7 @@
 
                 const usedCourts = matches.filter(m => !m.done).map(m => m.courtNumber);
                 let courtToUse = 1;
-                for (let i = 1; i <= eventDetails.courts; i++) {
+                for (let i = 1; i <= (parseInt(eventDetails.courts) || 1); i++) {
                     if (!usedCourts.includes(i)) { courtToUse = i; break; }
                 }
 
@@ -436,7 +436,16 @@
                                                 </div>
                                                 <div className="flex items-center gap-3 bg-slate-50 p-3 rounded-xl">
                                                     <span className="text-[10px] font-black text-slate-400 uppercase">Jumlah Lapangan:</span>
-                                                    <input type="number" min="1" className="w-12 bg-white text-center font-black text-indigo-600 rounded-lg border border-slate-200" value={eventDetails.courts} onChange={e => setEventDetails({...eventDetails, courts: Math.max(1, parseInt(e.target.value)||1)})} />
+                                                    <input 
+                                                        type="number" 
+                                                        className="w-12 bg-white text-center font-black text-indigo-600 rounded-lg border border-slate-200" 
+                                                        value={eventDetails.courts} 
+                                                        onChange={e => {
+                                                            const val = e.target.value;
+                                                            // Logic diperbaiki: biarkan kosong jika user menghapus angka[cite: 1]
+                                                            setEventDetails({...eventDetails, courts: val === "" ? "" : Math.max(1, parseInt(val) || 1)});
+                                                        }} 
+                                                    />
                                                 </div>
                                             </div>
                                         </div>
@@ -455,7 +464,6 @@
                                 <div className="space-y-3 pb-10">
                                     <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest px-2">Daftar Pemain ({players.length})</h3>
                                     
-                                    {/* TOMBOL MAIN/ISTIRAHATKAN SEMUA DIKEMBALIKAN[cite: 1] */}
                                     {players.length > 0 && !isFinished && (
                                         <div className="flex gap-2 px-2">
                                             <button onClick={() => setAllPlayersStatus(true)} className="flex-1 py-2 bg-indigo-50 text-indigo-600 rounded-xl text-[9px] font-black uppercase">Mainkan Semua</button>
@@ -475,11 +483,9 @@
                                                             <input autoFocus className="font-black text-slate-800 text-sm bg-indigo-50 outline-none border-b-2 border-indigo-500 w-full" value={p.name} onChange={(e) => updatePlayerName(p.id, e.target.value)} onBlur={() => setEditingPlayerId(null)} onKeyDown={(e) => e.key === 'Enter' && setEditingPlayerId(null)}/>
                                                         ) : (
                                                             <div className="flex items-center gap-2">
-                                                                {/* Edit nama selektif: Hanya jika belum submit skor[cite: 1] */}
                                                                 <div className={`font-black text-slate-800 text-sm flex items-center gap-1 ${!hasPlayed && !isFinished ? 'cursor-pointer hover:text-indigo-600' : ''}`} onClick={() => !isFinished && !hasPlayed && setEditingPlayerId(p.id)}>
                                                                     {p.name} {busy && <span className="text-[8px] bg-amber-100 text-amber-600 px-1 rounded">BUSY</span>}
                                                                 </div>
-                                                                {/* Tombol hapus selektif: Hanya jika belum submit skor[cite: 1] */}
                                                                 {(!hasPlayed && !isFinished) && (
                                                                     <button onClick={() => removePlayer(p.id)} className="text-rose-500 hover:text-rose-700 p-1">
                                                                         <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18m-2 0v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6m3 0V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"></path></svg>
@@ -517,7 +523,6 @@
                                                         {(teamNum === 1 ? m.t1 : m.t2).map(playerId => (
                                                             <div key={playerId} className="flex items-center gap-2 group">
                                                                 <div className={`w-1.5 h-1.5 rounded-full ${getPGender(playerId)==='M'?'bg-blue-400':'bg-pink-400'}`}></div>
-                                                                {/* Fitur Ganti Pemain di sesi pertandingan[cite: 1] */}
                                                                 {(!m.done && !isFinished) ? (
                                                                     <select 
                                                                         className="bg-slate-50 border-none font-black text-xs p-1 rounded-lg outline-none focus:ring-1 focus:ring-indigo-300 w-full"
@@ -591,7 +596,7 @@
                     {((view === 'setup' || view === 'matches') && !isFinished) && (
                         <div className="floating-btn-container">
                             <button onClick={generateRound} className="w-full py-5 bg-slate-900 text-white rounded-3xl font-black shadow-2xl uppercase text-xs border-4 border-white">
-                                {matches.filter(m => !m.done).length < eventDetails.courts ? "NEXT MATCH" : "COURT FULL"}
+                                {matches.filter(m => !m.done).length < (parseInt(eventDetails.courts) || 1) ? "NEXT MATCH" : "COURT FULL"}
                             </button>
                         </div>
                     )}
